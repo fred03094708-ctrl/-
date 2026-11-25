@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>할 일 관리</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #1f2328; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #4f46e5; --danger: #dc2626; --overdue: #b45309;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111318; --card: #1b1e25; --text: #e6e8eb; --muted: #9aa1ac;
+      --line: #2b2f38; --accent: #818cf8; --danger: #f87171; --overdue: #fbbf24;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+  main { max-width: 560px; margin: 40px auto; padding: 0 16px; }
+  h1 { font-size: 1.6rem; margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  form { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] { flex: 1 1 220px; }
+  input, select, button {
+    font: inherit; color: inherit; background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filters { display: flex; gap: 6px; margin: 16px 0 8px; flex-wrap: wrap; align-items: center; }
+  .filters button.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .filters .spacer { flex: 1; }
+  .count { color: var(--muted); font-size: .9rem; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    display: flex; align-items: center; gap: 10px; padding: 10px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  li:last-child { border-bottom: none; }
+  li input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+  .body { flex: 1; min-width: 0; }
+  .title { word-break: break-word; }
+  li.done .title { text-decoration: line-through; color: var(--muted); }
+  .meta { font-size: .8rem; color: var(--muted); display: flex; gap: 8px; }
+  .meta .overdue { color: var(--overdue); font-weight: 600; }
+  .prio { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .prio.high { background: #ef4444; } .prio.mid { background: #f59e0b; } .prio.low { background: #10b981; }
+  .del { border: none; background: none; color: var(--muted); font-size: 1.1rem; padding: 4px 8px; }
+  .del:hover { color: var(--danger); }
+  .empty { text-align: center; color: var(--muted); padding: 24px 0; }
+  .edit-input { width: 100%; }
+</style>
+</head>
+<body>
+<main>
+  <h1>할 일 관리</h1>
+  <div class="card">
+    <form id="add-form">
+      <input type="text" id="new-title" placeholder="할 일을 입력하세요" autocomplete="off" required>
+      <input type="date" id="new-due" aria-label="마감일">
+      <select id="new-prio" aria-label="우선순위">
+        <option value="mid">보통</option>
+        <option value="high">높음</option>
+        <option value="low">낮음</option>
+      </select>
+      <button class="primary" type="submit">추가</button>
+    </form>
+
+    <div class="filters">
+      <button data-filter="all" class="active">전체</button>
+      <button data-filter="active">진행 중</button>
+      <button data-filter="done">완료</button>
+      <span class="spacer"></span>
+      <span class="count" id="count"></span>
+      <button id="clear-done">완료 항목 삭제</button>
+    </div>
+
+    <ul id="list"></ul>
+  </div>
+</main>
+
+<script>
+  const STORAGE_KEY = 'todos.v1';
+  const PRIO_ORDER = { high: 0, mid: 1, low: 2 };
+  const PRIO_LABEL = { high: '높음', mid: '보통', low: '낮음' };
+
+  let todos = load();
+  let filter = 'all';
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(todos)); } catch {}
+  }
+  function today() {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
+  const $ = (s) => document.querySelector(s);
+  const list = $('#list');
+
+  $('#add-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = $('#new-title').value.trim();
+    if (!title) return;
+    todos.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      title, done: false,
+      due: $('#new-due').value || null,
+      prio: $('#new-prio').value,
+      createdAt: Date.now(),
+    });
+    $('#new-title').value = '';
+    $('#new-due').value = '';
+    $('#new-prio').value = 'mid';
+    save(); render();
+    $('#new-title').focus();
+  });
+
+  document.querySelectorAll('[data-filter]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      filter = btn.dataset.filter;
+      document.querySelectorAll('[data-filter]').forEach((b) => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  $('#clear-done').addEventListener('click', () => {
+    const n = todos.filter((t) => t.done).length;
+    if (!n || !confirm(`완료한 항목 ${n}개를 삭제할까요?`)) return;
+    todos = todos.filter((t) => !t.done);
+    save(); render();
+  });
+
+  function sorted(items) {
+    return [...items].sort((a, b) =>
+      (a.done - b.done) ||
+      (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio]) ||
+      ((a.due || '9999') .localeCompare(b.due || '9999')) ||
+      (a.createdAt - b.createdAt));
+  }
+
+  function startEdit(todo, titleEl) {
+    const input = document.createElement('input');
+    input.type = 'text'; input.value = todo.title; input.className = 'edit-input';
+    titleEl.replaceWith(input);
+    input.focus(); input.select();
+    let finished = false;
+    const finish = (commit) => {
+      if (finished) return; finished = true;
+      const v = input.value.trim();
+      if (commit && v) { todo.title = v; save(); }
+      render();
+    };
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') finish(true);
+      if (e.key === 'Escape') finish(false);
+    });
+    input.addEventListener('blur', () => finish(true));
+  }
+
+  function render() {
+    const shown = sorted(todos.filter((t) =>
+      filter === 'all' || (filter === 'done' ? t.done : !t.done)));
+    list.innerHTML = '';
+
+    if (!shown.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = todos.length ? '해당하는 항목이 없어요.' : '할 일을 추가해 보세요!';
+      list.appendChild(li);
+    }
+
+    const t0 = today();
+    for (const todo of shown) {
+      const li = document.createElement('li');
+      if (todo.done) li.classList.add('done');
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = todo.done;
+      cb.addEventListener('change', () => { todo.done = cb.checked; save(); render(); });
+
+      const dot = document.createElement('span');
+      dot.className = `prio ${todo.prio}`;
+      dot.title = `우선순위: ${PRIO_LABEL[todo.prio]}`;
+
+      const body = document.createElement('div');
+      body.className = 'body';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = todo.title;
+      title.title = '더블클릭해서 수정';
+      title.addEventListener('dblclick', () => startEdit(todo, title));
+      body.appendChild(title);
+
+      if (todo.due) {
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const due = document.createElement('span');
+        const overdue = !todo.done && todo.due < t0;
+        due.textContent = todo.due === t0 ? '오늘 마감' : `마감 ${todo.due}${overdue ? ' (지남)' : ''}`;
+        if (overdue) due.className = 'overdue';
+        meta.appendChild(due);
+        body.appendChild(meta);
+      }
+
+      const del = document.createElement('button');
+      del.className = 'del'; del.textContent = '✕'; del.title = '삭제';
+      del.addEventListener('click', () => { todos = todos.filter((t) => t !== todo); save(); render(); });
+
+      li.append(cb, dot, body, del);
+      list.appendChild(li);
+    }
+
+    const left = todos.filter((t) => !t.done).length;
+    $('#count').textContent = `남은 일 ${left}개 / 전체 ${todos.length}개`;
+  }
+
+  render();
+</script>
+</body>
+</html>
