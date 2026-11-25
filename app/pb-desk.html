@@ -1,0 +1,666 @@
+<title>PB 업무 데스크</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  /* Layout: one-column app shell, sticky header, fixed bottom tab bar, bottom-sheet editor */
+  :root {
+    --bg: #f3f4f1; --surface: #ffffff; --surface-2: #eceee9; --ink: #18202b; --muted: #5f6873;
+    --line: #dcdfd8; --accent: #1f5c4f; --accent-ink: #ffffff; --accent-soft: #dcebe6;
+    --warn: #a35a00; --warn-soft: #fbeedb; --danger: #b42318; --danger-soft: #fbe4e1;
+    --high: #c2410c; --mid: #a16207; --low: #4d7c0f;
+    --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --tabbar: 60px;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #111513; --surface: #1a1f1d; --surface-2: #232a27; --ink: #e7ebe8; --muted: #98a29d;
+    --line: #2e3633; --accent: #6cc3aa; --accent-ink: #0d1f1a; --accent-soft: #1f3a33;
+    --warn: #f0b660; --warn-soft: #3a2c16; --danger: #f2877c; --danger-soft: #3d1f1c;
+    --high: #fb923c; --mid: #facc15; --low: #a3e635; color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg: #111513; --surface: #1a1f1d; --surface-2: #232a27; --ink: #e7ebe8; --muted: #98a29d;
+    --line: #2e3633; --accent: #6cc3aa; --accent-ink: #0d1f1a; --accent-soft: #1f3a33;
+    --warn: #f0b660; --warn-soft: #3a2c16; --danger: #f2877c; --danger-soft: #3d1f1c;
+    --high: #fb923c; --mid: #facc15; --low: #a3e635; color-scheme: dark;
+  }
+  html, body { background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.5 var(--font); padding-bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 16px); }
+  * { box-sizing: border-box; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  header.top {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 14px 10px; border-bottom: 1px solid var(--line);
+  }
+  .top-inner, .wrap { max-width: 760px; margin: 0 auto; }
+  .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; }
+  .top-inner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .brand { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .brand h1 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+  .brand .date { color: var(--muted); font-size: .85rem; }
+  .sync { font-size: .78rem; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+  .sync.ok { background: var(--accent-soft); color: var(--accent); }
+  .sync.warn { background: var(--warn-soft); color: var(--warn); }
+  .ghost { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; font-size: .85rem; }
+
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface);
+    border-top: 1px solid var(--line); display: flex; justify-content: center;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: max(0px, env(safe-area-inset-left, 0px)); padding-right: max(0px, env(safe-area-inset-right, 0px));
+  }
+  nav.tabs .inner { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; max-width: 760px; }
+  nav.tabs button { height: var(--tabbar); background: none; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--muted); font-size: .78rem; }
+  nav.tabs button svg { width: 22px; height: 22px; }
+  nav.tabs button[aria-current="page"] { color: var(--accent); font-weight: 600; }
+
+  .fab {
+    position: fixed; z-index: 7; width: 56px; height: 56px; border-radius: 50%; border: none;
+    right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px));
+    bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 16px);
+    background: var(--accent); color: var(--accent-ink); font-size: 28px; line-height: 1;
+    box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  }
+
+  h2.sec { font-size: .8rem; letter-spacing: .06em; color: var(--muted); font-weight: 600; margin: 22px 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
+  h2.sec:first-child { margin-top: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  @media (max-width: 520px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+  .tile .n { font-family: var(--mono); font-size: 1.6rem; line-height: 1.1; }
+  .tile .l { font-size: .8rem; color: var(--muted); }
+  .tile.alert .n { color: var(--danger); }
+  .tile.warn .n { color: var(--warn); }
+
+  .list { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .row { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: none; }
+  .row .check { width: 22px; height: 22px; margin-top: 1px; flex: none; border-radius: 6px; border: 2px solid var(--line); background: none; display: grid; place-items: center; padding: 0; }
+  .row .check.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .row .check svg { width: 14px; height: 14px; }
+  .row .main { flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 0; }
+  .row .t { word-break: break-word; font-weight: 500; }
+  .row.done .t { text-decoration: line-through; color: var(--muted); font-weight: 400; }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; font-size: .78rem; color: var(--muted); align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); font-size: .75rem; color: var(--muted); }
+  .chip.client { background: var(--accent-soft); color: var(--accent); }
+  .chip.over { background: var(--danger-soft); color: var(--danger); font-weight: 600; }
+  .chip.today { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+  .bar { width: 4px; align-self: stretch; border-radius: 2px; flex: none; }
+  .bar.high { background: var(--high); } .bar.mid { background: var(--mid); } .bar.low { background: var(--low); }
+  .empty { padding: 22px 14px; text-align: center; color: var(--muted); font-size: .9rem; }
+  .row-actions { display: flex; gap: 6px; flex: none; align-items: center; }
+  .small-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 4px 9px; font-size: .8rem; white-space: nowrap; }
+  .small-btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .toolbar input[type=search] { flex: 1 1 200px; min-width: 0; }
+  .field, .toolbar input, .toolbar select {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; width: 100%;
+  }
+  .toolbar select { width: auto; }
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { border: none; background: none; padding: 6px 12px; border-radius: 8px; font-size: .85rem; color: var(--muted); }
+  .seg button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  .grade { font-family: var(--mono); font-size: .7rem; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; }
+  .grade.VVIP { color: var(--high); } .grade.VIP { color: var(--accent); } .grade.일반 { color: var(--muted); }
+
+  .note { font-size: .8rem; color: var(--muted); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin-top: 18px; }
+
+  /* Bottom sheet */
+  .scrim { position: fixed; inset: 0; background: rgba(10,14,12,.45); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet {
+    background: var(--surface); width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto;
+    border-radius: 16px 16px 0 0; padding-block: 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  @media (min-width: 700px) { .scrim { align-items: center; } .sheet { border-radius: 16px; } }
+  .sheet h3 { margin: 0 0 12px; font-size: 1.05rem; }
+  .form { display: grid; gap: 12px; }
+  .form label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); }
+  .form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form .field { color: var(--ink); font-size: .95rem; }
+  textarea.field { resize: vertical; min-height: 64px; }
+  .templates { display: flex; flex-wrap: wrap; gap: 6px; }
+  .templates button { border: 1px dashed var(--line); background: none; border-radius: 999px; padding: 4px 10px; font-size: .8rem; color: var(--muted); }
+  .checkline { display: flex !important; align-items: center; gap: 8px; color: var(--ink) !important; font-size: .9rem !important; }
+  .checkline input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .sheet-actions { display: flex; gap: 8px; margin-top: 6px; }
+  .sheet-actions .spacer { flex: 1; }
+  .btn { border-radius: 10px; padding: 10px 16px; border: 1px solid var(--line); background: var(--surface); font-weight: 500; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.danger { color: var(--danger); }
+  .btn.danger.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 30;
+    bottom: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px) + 84px);
+    background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-size: .88rem;
+    max-width: calc(100% - 32px); box-shadow: 0 6px 18px rgba(0,0,0,.2);
+  }
+  @media (prefers-reduced-motion: no-preference) { .sheet { animation: up .18s ease-out; } @keyframes up { from { transform: translateY(24px); opacity: .6; } } }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <h1>PB 업무 데스크</h1>
+      <span class="date" id="today-label"></span>
+    </div>
+    <button class="ghost" id="install-btn" hidden>데스크톱 앱으로 설치</button>
+    <span class="sync" id="sync">불러오는 중</span>
+  </div>
+</header>
+
+<main class="wrap" id="view"></main>
+
+<button class="fab" id="fab" aria-label="새로 추가">+</button>
+
+<nav class="tabs" aria-label="화면">
+  <div class="inner">
+    <button data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8.5 14.5l2.2 2 4.8-4.5"/></svg>오늘</button>
+    <button data-tab="tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M3.5 6l1.3 1.3L7 5M3.5 12l1.3 1.3L7 11M3.5 18l1.3 1.3L7 17"/></svg>할 일</button>
+    <button data-tab="clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 19.5c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5"/><path d="M16 5.5a3 3 0 010 6M18 14.8c1.8.6 3 2.2 3.5 4.7"/></svg>고객</button>
+  </div>
+</nav>
+
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script>
+(() => {
+  // ---------- constants ----------
+  const CATEGORIES = ['고객상담', '리밸런싱', '만기·롤오버', '상품제안', '서류·컴플라이언스', '리서치·시황', '내부업무', '기타'];
+  const PRIO = { high: '높음', mid: '보통', low: '낮음' };
+  const PRIO_ORDER = { high: 0, mid: 1, low: 2 };
+  const REPEAT = { none: '반복 없음', daily: '매일', weekdays: '평일마다', weekly: '매주', monthly: '매월', quarterly: '분기마다' };
+  const GRADES = ['VVIP', 'VIP', '일반'];
+  const TEMPLATES = [
+    { title: '만기 도래 안내 및 재투자 상담', category: '만기·롤오버', prio: 'high' },
+    { title: '정기 포트폴리오 리밸런싱 점검', category: '리밸런싱', prio: 'mid', repeat: 'quarterly' },
+    { title: '투자성향(적합성) 재확인', category: '서류·컴플라이언스', prio: 'mid' },
+    { title: '월간 운용 리포트 발송', category: '고객상담', prio: 'mid', repeat: 'monthly' },
+    { title: '신규 상품 제안 자료 준비', category: '상품제안', prio: 'mid' },
+    { title: '모닝 시황 브리핑 확인', category: '리서치·시황', prio: 'low', repeat: 'weekdays' },
+    { title: '생일·기념일 연락', category: '고객상담', prio: 'low' },
+  ];
+  const LOCAL_KEY = 'pb-desk.local.v1';
+  const UI_KEY = 'pb-desk.ui.v1';
+
+  // ---------- helpers ----------
+  const $ = (s) => document.querySelector(s);
+  function h(tag, props, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'text') el.textContent = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (k === 'html') el.innerHTML = v; // only for static, author-written svg
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+    return el;
+  }
+  const pad = (n) => String(n).padStart(2, '0');
+  const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const todayStr = () => ymd(new Date());
+  const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); };
+  const diffDays = (a, b) => Math.round((parse(a) - parse(b)) / 86400000);
+  const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+  const fmtDate = (s) => { const d = parse(s); return `${d.getMonth() + 1}/${d.getDate()}(${DOW[d.getDay()]})`; };
+  const newId = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  function lsGet(k, fb) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+
+  function nextDue(due, repeat) {
+    const base = due || todayStr();
+    const d = parse(base);
+    if (repeat === 'daily') d.setDate(d.getDate() + 1);
+    else if (repeat === 'weekdays') { do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6); }
+    else if (repeat === 'weekly') d.setDate(d.getDate() + 7);
+    else if (repeat === 'monthly' || repeat === 'quarterly') {
+      const add = repeat === 'monthly' ? 1 : 3, day = d.getDate();
+      d.setDate(1); d.setMonth(d.getMonth() + add);
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(day, last));
+    }
+    return ymd(d);
+  }
+
+  // ---------- store (synced db, or this-device fallback) ----------
+  const store = {
+    mode: 'loading', items: new Map(), col: null,
+    tasks() { return [...this.items.values()].filter((x) => x.kind === 'task'); },
+    clients() { return [...this.items.values()].filter((x) => x.kind === 'client'); },
+    get(id) { return this.items.get(id); },
+    async put(obj) {
+      this.items.set(obj.id, obj); render();
+      if (this.mode === 'db') {
+        const { id, ...body } = obj;
+        try { await this.col.doc(id).set(body); }
+        catch (e) { toast(e?.code === 'quota_exceeded' ? '저장 공간이 가득 찼어요. 완료된 항목을 정리해 주세요.' : '저장하지 못했어요. 잠시 후 다시 시도해 주세요.'); }
+      } else saveLocal();
+    },
+    async remove(id) {
+      this.items.delete(id); render();
+      if (this.mode === 'db') { try { await this.col.doc(id).delete(); } catch { toast('삭제하지 못했어요. 다시 시도해 주세요.'); } }
+      else saveLocal();
+    },
+  };
+  function saveLocal() { lsSet(LOCAL_KEY, [...store.items.values()]); }
+  function setSync(text, cls) { const el = $('#sync'); el.textContent = text; el.className = 'sync' + (cls ? ' ' + cls : ''); }
+
+  function useLocal(reason) {
+    store.mode = 'local';
+    store.items = new Map(lsGet(LOCAL_KEY, []).map((x) => [x.id, x]));
+    setSync(reason || '이 기기에만 저장', 'warn');
+    render();
+  }
+
+  async function connect() {
+    const timer = setTimeout(() => { if (store.mode === 'loading') useLocal('연결 지연 · 이 기기에 저장'); }, 10000);
+    const claude = window.claude;
+    if (!claude?.use) { clearTimeout(timer); return useLocal(); }
+    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    const uid = user ? await user.id() : null;
+    if (!db || !uid) { clearTimeout(timer); return useLocal(); }
+    store.col = db.collection('data/users/' + uid);
+    let first = true;
+    store.col.onSnapshot(async (snap) => {
+      clearTimeout(timer);
+      if (store.mode !== 'db') {
+        // carry over anything typed while offline / before connecting
+        const pending = store.mode === 'local' ? [...store.items.values()] : lsGet(LOCAL_KEY, []);
+        store.mode = 'db';
+        if (pending.length) {
+          for (const x of pending) { const { id, ...body } = x; try { await store.col.doc(id).set(body); } catch {} }
+          lsSet(LOCAL_KEY, []);
+          toast(`이 기기에 있던 ${pending.length}개 항목을 동기화했어요.`);
+        }
+      }
+      store.items = new Map(snap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+      setSync(snap.metadata.fromCache ? '동기화 대기' : '모든 기기 동기화', snap.metadata.fromCache ? '' : 'ok');
+      if (first || !document.querySelector('.scrim')) render();
+      first = false;
+    }, (err) => {
+      clearTimeout(timer);
+      if (err?.code === 'revoked') { setSync('읽기 전용', 'warn'); return; }
+      useLocal('동기화 끊김 · 이 기기에 저장');
+    });
+  }
+
+  // ---------- calendar ----------
+  let mcp = null;
+  async function addToCalendar(task) {
+    if (!task.due) { toast('마감일이 있어야 캘린더에 등록할 수 있어요.'); return false; }
+    if (!mcp) mcp = await window.claude?.use?.('mcp');
+    if (!mcp) { toast('이 화면에서는 Google 캘린더를 쓸 수 없어요.'); return false; }
+    const client = task.clientId ? store.get(task.clientId) : null;
+    const input = {
+      summary: (client ? `[${client.name}] ` : '') + task.title,
+      description: [`분류: ${task.category}`, `우선순위: ${PRIO[task.prio]}`, task.memo ? `메모: ${task.memo}` : ''].filter(Boolean).join('\n'),
+      useDefaultReminders: true,
+    };
+    if (task.time) {
+      const [hh, mm] = task.time.split(':').map(Number);
+      const end = new Date(parse(task.due)); end.setHours(hh, mm + 30);
+      input.startTime = `${task.due}T${task.time}:00`;
+      input.endTime = `${ymd(end)}T${pad(end.getHours())}:${pad(end.getMinutes())}:00`;
+    } else {
+      input.allDay = true;
+      input.startTime = `${task.due}T00:00:00`;
+      input.endTime = `${addDays(task.due, 1)}T00:00:00`;
+    }
+    try {
+      toast('Google 캘린더에 등록하는 중…');
+      await mcp.callTool('Google Calendar', 'create_event', input);
+      toast(`캘린더에 등록했어요: ${fmtDate(task.due)}${task.time ? ' ' + task.time : ''}`);
+      return true;
+    } catch (e) {
+      const msg = {
+        server_not_connected: 'Google 캘린더가 연결되어 있지 않아요. claude.ai 설정 > 커넥터에서 연결해 주세요.',
+        needs_reauth: 'Google 캘린더 로그인이 만료됐어요. 커넥터를 다시 연결해 주세요.',
+        consent_required: '캘린더 사용을 허용해야 등록할 수 있어요.',
+        not_granted: '캘린더 사용이 허용되지 않았어요.',
+        rate_limited: '요청이 많아요. 잠시 후 다시 시도해 주세요.',
+      }[e?.code] || '캘린더 등록에 실패했어요. 다시 시도해 주세요.';
+      toast(msg);
+      return false;
+    }
+  }
+
+  // ---------- ui state ----------
+  const ui = Object.assign({ tab: 'today', filter: 'open', cat: '', q: '' }, lsGet(UI_KEY, {}));
+  ui.q = '';
+  const saveUi = () => lsSet(UI_KEY, { tab: ui.tab, filter: ui.filter, cat: ui.cat });
+
+  let toastTimer;
+  function toast(text) {
+    const root = $('#toast-root'); root.innerHTML = '';
+    root.append(h('div', { class: 'toast', role: 'status', text }));
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => (root.innerHTML = ''), 3200);
+  }
+
+  // ---------- task logic ----------
+  function sortTasks(list) {
+    return [...list].sort((a, b) => (a.done - b.done)
+      || ((a.due || '9999-99-99').localeCompare(b.due || '9999-99-99'))
+      || ((a.time || '99').localeCompare(b.time || '99'))
+      || (PRIO_ORDER[a.prio] - PRIO_ORDER[b.prio])
+      || (a.createdAt - b.createdAt));
+  }
+  async function toggleDone(task) {
+    const done = !task.done;
+    await store.put({ ...task, done, doneAt: done ? Date.now() : null });
+    if (done && task.repeat && task.repeat !== 'none') {
+      const due = nextDue(task.due, task.repeat);
+      await store.put({ ...task, id: newId('t_'), done: false, doneAt: null, due, createdAt: Date.now() });
+      toast(`다음 일정을 만들었어요: ${fmtDate(due)}`);
+    }
+    if (done && task.clientId) {
+      const c = store.get(task.clientId);
+      if (c && task.category === '고객상담' && (!c.lastContact || c.lastContact < todayStr()))
+        await store.put({ ...c, lastContact: todayStr() });
+    }
+  }
+  function clientStatus(c) {
+    if (!c.cycle) return null;
+    if (!c.lastContact) return { over: true, label: '연락 기록 없음' };
+    const due = addDays(c.lastContact, Number(c.cycle));
+    const left = diffDays(due, todayStr());
+    if (left < 0) return { over: true, label: `연락 ${-left}일 지남` };
+    if (left <= 3) return { soon: true, label: left === 0 ? '오늘 연락' : `${left}일 후 연락` };
+    return { label: `${fmtDate(due)} 연락 예정` };
+  }
+
+  // ---------- rendering ----------
+  const ICON_CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 8.5l3 3 7-7"/></svg>';
+
+  function taskRow(t) {
+    const t0 = todayStr();
+    const client = t.clientId ? store.get(t.clientId) : null;
+    const meta = h('div', { class: 'meta' });
+    if (t.due) {
+      const over = !t.done && t.due < t0, isToday = t.due === t0;
+      meta.append(h('span', { class: 'chip num' + (over ? ' over' : isToday ? ' today' : '') },
+        (isToday ? '오늘' : fmtDate(t.due)) + (t.time ? ' ' + t.time : '') + (over ? ' 지연' : '')));
+    }
+    if (client) meta.append(h('span', { class: 'chip client', text: client.name }));
+    meta.append(h('span', { text: t.category }));
+    if (t.repeat && t.repeat !== 'none') meta.append(h('span', { text: '↻ ' + REPEAT[t.repeat] }));
+    return h('div', { class: 'row' + (t.done ? ' done' : '') },
+      h('span', { class: 'bar ' + t.prio, title: '우선순위 ' + PRIO[t.prio] }),
+      h('button', { class: 'check' + (t.done ? ' on' : ''), 'aria-label': t.done ? '완료 취소' : '완료', html: t.done ? ICON_CHECK : '', onclick: () => toggleDone(t) }),
+      h('button', { class: 'main', onclick: () => openTask(t) },
+        h('div', { class: 't', text: t.title }), meta));
+  }
+
+  function list(items, emptyText, rowFn) {
+    const el = h('div', { class: 'list' });
+    if (!items.length) el.append(h('div', { class: 'empty', text: emptyText }));
+    else items.forEach((x) => el.append(rowFn(x)));
+    return el;
+  }
+
+  function viewToday() {
+    const t0 = todayStr(), wk = addDays(t0, 7);
+    const open = store.tasks().filter((t) => !t.done);
+    const overdue = sortTasks(open.filter((t) => t.due && t.due < t0));
+    const today = sortTasks(open.filter((t) => t.due === t0));
+    const week = sortTasks(open.filter((t) => t.due && t.due > t0 && t.due <= wk));
+    const contact = store.clients().map((c) => ({ c, s: clientStatus(c) })).filter((x) => x.s && (x.s.over || x.s.soon));
+    const maturity = week.filter((t) => t.category === '만기·롤오버').length + today.filter((t) => t.category === '만기·롤오버').length;
+
+    const tile = (n, l, cls, go) => h('button', { class: 'tile' + (n && cls ? ' ' + cls : ''), onclick: go }, h('span', { class: 'n', text: n }), h('span', { class: 'l', text: l }));
+    const goTasks = () => switchTab('tasks');
+    return [
+      h('h2', { class: 'sec' }, '요약'),
+      h('div', { class: 'tiles' },
+        tile(overdue.length, '지연된 일', 'alert', goTasks),
+        tile(today.length, '오늘 할 일', 'warn', goTasks),
+        tile(maturity, '7일 내 만기', 'warn', goTasks),
+        tile(contact.length, '연락할 고객', 'warn', () => switchTab('clients'))),
+      overdue.length ? [h('h2', { class: 'sec' }, '지연'), list(overdue, '', taskRow)] : null,
+      h('h2', { class: 'sec' }, '오늘'),
+      list(today, '오늘 마감인 일이 없어요. 아래 + 버튼으로 추가하세요.', taskRow),
+      contact.length ? [h('h2', { class: 'sec' }, '연락할 고객'), list(contact, '', ({ c, s }) => clientRow(c, s))] : null,
+      h('h2', { class: 'sec' }, '다가오는 7일'),
+      list(week, '이번 주에 예정된 일이 없어요.', taskRow),
+    ];
+  }
+
+  function viewTasks() {
+    const q = ui.q.trim().toLowerCase();
+    let items = store.tasks();
+    if (ui.filter === 'open') items = items.filter((t) => !t.done);
+    if (ui.filter === 'done') items = items.filter((t) => t.done);
+    if (ui.cat) items = items.filter((t) => t.category === ui.cat);
+    if (q) items = items.filter((t) => {
+      const c = t.clientId ? store.get(t.clientId) : null;
+      return [t.title, t.memo, t.category, c?.name].some((s) => s && s.toLowerCase().includes(q));
+    });
+    items = sortTasks(items);
+    if (ui.filter === 'done') items.reverse();
+
+    const search = h('input', { type: 'search', id: 'task-search', placeholder: '제목·고객·메모 검색', value: ui.q,
+      oninput: (e) => { ui.q = e.target.value; const pos = e.target.selectionStart; render(); const el = $('#task-search'); el.focus(); el.setSelectionRange(pos, pos); } });
+    const cat = h('select', { id: 'task-cat', 'aria-label': '분류', onchange: (e) => { ui.cat = e.target.value; saveUi(); render(); } },
+      h('option', { value: '' }, '전체 분류'), CATEGORIES.map((c) => h('option', { value: c, selected: ui.cat === c }, c)));
+    const seg = h('div', { class: 'seg' }, [['open', '진행 중'], ['all', '전체'], ['done', '완료']].map(([k, l]) =>
+      h('button', { class: ui.filter === k ? 'on' : '', onclick: () => { ui.filter = k; saveUi(); render(); } }, l)));
+    const doneCount = store.tasks().filter((t) => t.done).length;
+    return [
+      h('div', { class: 'toolbar' }, search, cat),
+      h('div', { class: 'toolbar' }, seg),
+      list(items, store.tasks().length ? '조건에 맞는 할 일이 없어요.' : '할 일이 없어요. + 버튼으로 첫 할 일을 추가하세요.', taskRow),
+      ui.filter === 'done' && doneCount ? h('div', { class: 'toolbar', style: 'margin-top:10px' }, clearDoneButton(doneCount)) : null,
+    ];
+  }
+
+  function clearDoneButton(n) {
+    let armed = false;
+    const b = h('button', { class: 'btn danger', onclick: async () => {
+      if (!armed) { armed = true; b.classList.add('armed'); b.textContent = `완료 ${n}개 삭제 확인`; return; }
+      for (const t of store.tasks().filter((x) => x.done)) await store.remove(t.id);
+      toast('완료한 할 일을 정리했어요.');
+    } }, `완료 항목 ${n}개 정리`);
+    return b;
+  }
+
+  function clientRow(c, s = clientStatus(c)) {
+    const open = store.tasks().filter((t) => t.clientId === c.id && !t.done).length;
+    const meta = h('div', { class: 'meta' },
+      h('span', { class: 'grade ' + c.grade, text: c.grade }),
+      s ? h('span', { class: 'chip' + (s.over ? ' over' : s.soon ? ' today' : ''), text: s.label }) : null,
+      c.lastContact ? h('span', { text: '최근 연락 ' + fmtDate(c.lastContact) }) : null,
+      open ? h('span', { text: `진행 중 ${open}건` }) : null);
+    return h('div', { class: 'row' },
+      h('button', { class: 'main', onclick: () => openClient(c) }, h('div', { class: 't', text: c.name }), meta),
+      h('div', { class: 'row-actions' },
+        h('button', { class: 'small-btn', onclick: () => openTask(null, { clientId: c.id }) }, '+ 할 일'),
+        h('button', { class: 'small-btn primary', onclick: async () => { await store.put({ ...c, lastContact: todayStr() }); toast(`${c.name}: 오늘 연락으로 기록했어요.`); } }, '연락함')));
+  }
+
+  function viewClients() {
+    const order = { VVIP: 0, VIP: 1, '일반': 2 };
+    const items = store.clients().map((c) => ({ c, s: clientStatus(c) })).sort((a, b) =>
+      ((b.s?.over ? 2 : b.s?.soon ? 1 : 0) - (a.s?.over ? 2 : a.s?.soon ? 1 : 0))
+      || (order[a.c.grade] - order[b.c.grade]) || a.c.name.localeCompare(b.c.name, 'ko'));
+    return [
+      h('h2', { class: 'sec' }, h('span', {}, '고객'), h('button', { class: 'small-btn', onclick: () => openClient(null) }, '+ 고객 추가')),
+      list(items, '등록된 고객이 없어요. 고객을 추가하면 연락 주기를 관리할 수 있어요.', ({ c, s }) => clientRow(c, s)),
+      h('p', { class: 'note' }, '개인정보 보호를 위해 실명·계좌번호·연락처 대신 이니셜이나 내부 고객코드를 쓰는 것을 권장해요. 사내 정보보호 규정을 먼저 확인하세요.'),
+    ];
+  }
+
+  function render() {
+    $('#today-label').textContent = (() => { const d = new Date(); return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${DOW[d.getDay()]}요일`; })();
+    document.querySelectorAll('nav.tabs button').forEach((b) => b.toggleAttribute('aria-current', false) || (b.dataset.tab === ui.tab && b.setAttribute('aria-current', 'page')));
+    const view = $('#view'); view.innerHTML = '';
+    if (store.mode === 'loading') { view.append(h('div', { class: 'empty', text: '할 일과 고객 목록을 불러오는 중이에요…' })); return; }
+    const parts = ui.tab === 'tasks' ? viewTasks() : ui.tab === 'clients' ? viewClients() : viewToday();
+    parts.flat(2).forEach((p) => p && view.append(p));
+    updateBadge();
+  }
+  function switchTab(tab) { ui.tab = tab; saveUi(); render(); window.scrollTo(0, 0); }
+  document.querySelectorAll('nav.tabs button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  $('#fab').addEventListener('click', () => (ui.tab === 'clients' ? openClient(null) : openTask(null)));
+
+  // ---------- sheets ----------
+  function closeSheet() { $('#sheet-root').innerHTML = ''; render(); }
+  function sheet(title, body, actions) {
+    const scrim = h('div', { class: 'scrim', onclick: (e) => { if (e.target === scrim) closeSheet(); } },
+      h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+        h('h3', { text: title }), body, h('div', { class: 'sheet-actions' }, actions)));
+    $('#sheet-root').innerHTML = ''; $('#sheet-root').append(scrim);
+    const first = scrim.querySelector('input,select,textarea'); if (first && matchMedia('(min-width: 700px)').matches) first.focus();
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#sheet-root').firstChild) closeSheet(); });
+
+  function deleteButton(onConfirm) {
+    let armed = false;
+    const b = h('button', { class: 'btn danger', type: 'button', onclick: () => {
+      if (!armed) { armed = true; b.classList.add('armed'); b.textContent = '한 번 더 눌러 삭제'; return; }
+      onConfirm();
+    } }, '삭제');
+    return b;
+  }
+
+  function openTask(task, preset = {}) {
+    const isNew = !task;
+    const t = task || { id: newId('t_'), kind: 'task', title: '', category: '고객상담', prio: 'mid', due: todayStr(), time: '', repeat: 'none', memo: '', clientId: '', done: false, createdAt: Date.now(), ...preset };
+    const f = {};
+    const field = (label, el) => h('label', {}, label, el);
+    f.title = h('input', { class: 'field', id: 'f-title', value: t.title, placeholder: '예: 홍○○ 고객 ELS 만기 안내', autocomplete: 'off' });
+    f.client = h('select', { class: 'field', id: 'f-client' }, h('option', { value: '' }, '고객 없음'),
+      store.clients().sort((a, b) => a.name.localeCompare(b.name, 'ko')).map((c) => h('option', { value: c.id, selected: t.clientId === c.id }, c.name)));
+    f.category = h('select', { class: 'field', id: 'f-cat' }, CATEGORIES.map((c) => h('option', { value: c, selected: t.category === c }, c)));
+    f.prio = h('select', { class: 'field', id: 'f-prio' }, Object.entries(PRIO).map(([k, l]) => h('option', { value: k, selected: t.prio === k }, l)));
+    f.due = h('input', { class: 'field', id: 'f-due', type: 'date', value: t.due || '' });
+    f.time = h('input', { class: 'field', id: 'f-time', type: 'time', value: t.time || '' });
+    f.repeat = h('select', { class: 'field', id: 'f-repeat' }, Object.entries(REPEAT).map(([k, l]) => h('option', { value: k, selected: (t.repeat || 'none') === k }, l)));
+    f.memo = h('textarea', { class: 'field', id: 'f-memo', placeholder: '상담 내용, 준비할 자료 등' }); f.memo.value = t.memo || '';
+    f.cal = h('input', { type: 'checkbox', id: 'f-cal' });
+
+    const templates = isNew ? h('div', { class: 'templates' }, TEMPLATES.map((tp) =>
+      h('button', { type: 'button', onclick: () => {
+        f.title.value = tp.title; f.category.value = tp.category; f.prio.value = tp.prio; f.repeat.value = tp.repeat || 'none';
+      } }, tp.title))) : null;
+
+    const save = async () => {
+      const title = f.title.value.trim();
+      if (!title) { f.title.focus(); toast('할 일 제목을 입력해 주세요.'); return; }
+      const next = { ...t, title, clientId: f.client.value, category: f.category.value, prio: f.prio.value,
+        due: f.due.value || null, time: f.due.value ? f.time.value : '', repeat: f.repeat.value, memo: f.memo.value.trim() };
+      const wantCal = f.cal.checked;
+      $('#sheet-root').innerHTML = '';
+      await store.put(next);
+      if (!wantCal) toast(isNew ? '할 일을 추가했어요.' : '저장했어요.');
+      else if (await addToCalendar(next)) await store.put({ ...next, calendarAt: Date.now() });
+    };
+
+    sheet(isNew ? '새 할 일' : '할 일 수정', h('form', { class: 'form', onsubmit: (e) => { e.preventDefault(); save(); } },
+      templates,
+      field('제목', f.title),
+      h('div', { class: 'two' }, field('고객', f.client), field('분류', f.category)),
+      h('div', { class: 'two' }, field('마감일', f.due), field('시간 (선택)', f.time)),
+      h('div', { class: 'two' }, field('우선순위', f.prio), field('반복', f.repeat)),
+      field('메모', f.memo),
+      h('label', { class: 'checkline' }, f.cal, t.calendarAt ? 'Google 캘린더에 다시 등록' : 'Google 캘린더에도 등록'),
+      h('button', { type: 'submit', hidden: true })),
+      [isNew ? null : deleteButton(async () => { $('#sheet-root').innerHTML = ''; await store.remove(t.id); toast('삭제했어요.'); }),
+       h('span', { class: 'spacer' }),
+       h('button', { class: 'btn', type: 'button', onclick: closeSheet }, '취소'),
+       h('button', { class: 'btn primary', type: 'button', onclick: save }, '저장')]);
+  }
+
+  function openClient(client) {
+    const isNew = !client;
+    const c = client || { id: newId('c_'), kind: 'client', name: '', grade: 'VIP', cycle: 30, lastContact: '', birthday: '', memo: '', createdAt: Date.now() };
+    const f = {};
+    const field = (label, el) => h('label', {}, label, el);
+    f.name = h('input', { class: 'field', id: 'c-name', value: c.name, placeholder: '이니셜 또는 고객코드 (예: KJH-0123)', autocomplete: 'off' });
+    f.grade = h('select', { class: 'field', id: 'c-grade' }, GRADES.map((g) => h('option', { value: g, selected: c.grade === g }, g)));
+    f.cycle = h('select', { class: 'field', id: 'c-cycle' }, [[0, '관리 안 함'], [7, '1주'], [14, '2주'], [30, '1개월'], [60, '2개월'], [90, '3개월'], [180, '6개월']]
+      .map(([v, l]) => h('option', { value: v, selected: Number(c.cycle || 0) === v }, l)));
+    f.last = h('input', { class: 'field', id: 'c-last', type: 'date', value: c.lastContact || '' });
+    f.memo = h('textarea', { class: 'field', id: 'c-memo', placeholder: '투자성향, 관심 상품, 주요 만기 등' }); f.memo.value = c.memo || '';
+
+    const save = async () => {
+      const name = f.name.value.trim();
+      if (!name) { f.name.focus(); toast('고객 이름(이니셜·코드)을 입력해 주세요.'); return; }
+      $('#sheet-root').innerHTML = '';
+      await store.put({ ...c, name, grade: f.grade.value, cycle: Number(f.cycle.value), lastContact: f.last.value, memo: f.memo.value.trim() });
+      toast(isNew ? '고객을 추가했어요.' : '저장했어요.');
+    };
+    const history = isNew ? null : (() => {
+      const ts = sortTasks(store.tasks().filter((t) => t.clientId === c.id)).slice(0, 8);
+      return ts.length ? h('div', {}, h('h2', { class: 'sec' }, '관련 할 일'), list(ts, '', (t) => { const r = taskRow(t); return r; })) : null;
+    })();
+
+    sheet(isNew ? '새 고객' : '고객 정보', h('form', { class: 'form', onsubmit: (e) => { e.preventDefault(); save(); } },
+      field('이름', f.name),
+      h('div', { class: 'two' }, field('등급', f.grade), field('연락 주기', f.cycle)),
+      field('최근 연락일', f.last),
+      field('메모', f.memo),
+      history,
+      h('button', { type: 'submit', hidden: true })),
+      [isNew ? null : deleteButton(async () => {
+        $('#sheet-root').innerHTML = '';
+        for (const t of store.tasks().filter((t) => t.clientId === c.id)) await store.put({ ...t, clientId: '' });
+        await store.remove(c.id); toast('고객을 삭제했어요. 관련 할 일은 남겨 두었어요.');
+      }),
+       h('span', { class: 'spacer' }),
+       h('button', { class: 'btn', type: 'button', onclick: closeSheet }, '취소'),
+       h('button', { class: 'btn primary', type: 'button', onclick: save }, '저장')]);
+  }
+
+  // ---------- desktop app ----------
+  let desktop = null, lastBadge = null;
+  function drawIcon() {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#1f5c4f'; g.beginPath(); g.roundRect(0, 0, 256, 256, 56); g.fill();
+    g.strokeStyle = '#ffffff'; g.lineWidth = 18; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(58, 132); g.lineTo(104, 176); g.lineTo(198, 82); g.stroke();
+    g.fillStyle = '#e8c27a'; g.beginPath(); g.arc(196, 196, 22, 0, Math.PI * 2); g.fill();
+    return cv.toDataURL('image/png');
+  }
+  function updateBadge() {
+    if (!desktop?.app?.dock) return;
+    const t0 = todayStr();
+    const n = store.tasks().filter((t) => !t.done && t.due && t.due <= t0).length;
+    const text = n ? String(n) : '';
+    if (text !== lastBadge) { lastBadge = text; desktop.app.dock.setBadge(text).catch(() => {}); }
+  }
+  async function setupDesktop() {
+    desktop = await window.claude?.use?.('desktop');
+    if (!desktop) return;
+    if (desktop.app?.dock) { desktop.app.dock.setIcon(drawIcon()).catch(() => {}); updateBadge(); return; }
+    try {
+      if ((await desktop.install?.state()) === 'available') {
+        const b = $('#install-btn'); b.hidden = false;
+        b.onclick = async () => { const r = await desktop.install.request().catch(() => 'failed'); if (r === 'installed') { b.hidden = true; toast('데스크톱 앱 설치를 시작했어요.'); } };
+      }
+    } catch {}
+  }
+
+  // re-render at midnight so "today" stays right
+  setInterval(() => { const s = todayStr(); if (s !== render.day) { render.day = s; if (!$('#sheet-root').firstChild) render(); } }, 60000);
+  render.day = todayStr();
+
+  render();
+  connect();
+  setupDesktop();
+})();
+</script>
